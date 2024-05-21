@@ -1,88 +1,104 @@
+import { useEffect } from "react";
 import { useReducer } from "react";
-import TodoList from "./components/TodoList";
+import { useState } from "react";
 import AddTodo from "./components/AddTodo";
-import ThemeContext from "./context/ThemeContext";
-import todoReducer from "./reducers/todoReducer";
+import TodoList from "./components/TodoList";
+
+function todoReducer(state, action) {
+  switch (action.type) {
+    case "FETCH_TODOS": {
+      return {
+        ...state,
+        todoList: action.todoList,
+      };
+    }
+    case "ADD_TODO": {
+      return {
+        ...state,
+        todoList: [...state.todoList, action.todo],
+      };
+    }
+    case "UPDATE_TODO": {
+      return {
+        ...state,
+        todoList: state.todoList.map((t) =>
+          t._id === action.todo._id ? action.todo : t
+        ),
+      };
+    }
+    case "DELETE_TODO": {
+      return {
+        ...state,
+        todoList: state.todoList.filter((t) => t._id !== action.todo._id),
+      };
+    }
+    default: {
+      throw new Error("Action inconnue");
+    }
+  }
+}
 
 function App() {
-  const [state, dispatch] = useReducer(todoReducer, {
-    theme: "primary",
-    todoList: [],
-  });
+  const [state, dispatch] = useReducer(todoReducer, { todoList: [] });
+  const [loading, setLoading] = useState(true);
 
-  function addTodo(content) {
-    dispatch({
-      type: "ADD_TODO",
-      content,
-    });
+  useEffect(() => {
+    let shouldCancel = false;
+    async function fetchTodoList() {
+      try {
+        const response = await fetch(`https://restapi.fr/api/rtodo`);
+        if (response.ok) {
+          const todos = await response.json();
+          if (!shouldCancel) {
+            if (Array.isArray(todos)) {
+              dispatch({ type: "FETCH_TODOS", todoList: todos });
+            } else {
+              dispatch({ type: "FETCH_TODOS", todoList: [todos] });
+            }
+          }
+        } else {
+          console.log("Erreur");
+        }
+      } catch (e) {
+        console.log("Erreur");
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchTodoList();
+    return () => {
+      shouldCancel = true;
+    };
+  }, []);
+
+  function addTodo(newTodo) {
+    dispatch({ type: "ADD_TODO", todo: newTodo });
   }
 
-  function deleteTodo(id) {
-    dispatch({
-      type: "DELETE_TODO",
-      id,
-    });
+  function deleteTodo(deletedTodo) {
+    dispatch({ type: "DELETE_TODO", todo: deletedTodo });
   }
 
-  function toggleTodo(id) {
-    dispatch({
-      type: "TOGGLE_TODO",
-      id,
-    });
-  }
-
-  function toggleTodoEdit(id) {
-    dispatch({
-      type: "TOGGLE_EDIT_TODO",
-      id,
-    });
-  }
-
-  function editTodo(id, content) {
-    dispatch({
-      type: "EDIT_TODO",
-      id,
-      content,
-    });
-  }
-
-  function selectTodo(id) {
-    dispatch({
-      type: "SELECT_TODO",
-      id,
-    });
-  }
-
-  function handleThemeChange(e) {
-    dispatch({
-      type: "SET_THEME",
-      theme: e.target.value,
-    });
+  function updateTodo(updatedTodo) {
+    dispatch({ type: "UPDATE_TODO", todo: updatedTodo });
   }
 
   return (
-    <ThemeContext.Provider value={state.theme}>
-      <div className="d-flex justify-content-center align-items-center p-20">
-        <div className="card container p-20">
-          <h1 className="mb-20 d-flex justify-content-center align-items-center">
-            <span className="flex-fill">Liste de tâches</span>
-            <select value={state.theme} onChange={handleThemeChange}>
-              <option value="primary">Rouge</option>
-              <option value="secondary">Bleu</option>
-            </select>
-          </h1>
-          <AddTodo addTodo={addTodo} />
+    <div className="d-flex flex-row justify-content-center align-items-center p-20">
+      <div className="card container p-20">
+        <h1 className="mb-20">Todo list</h1>
+        <AddTodo addTodo={addTodo} />
+        {loading ? (
+          <p>Chargement en cours</p>
+        ) : (
           <TodoList
             todoList={state.todoList}
             deleteTodo={deleteTodo}
-            toggleTodo={toggleTodo}
-            toggleTodoEdit={toggleTodoEdit}
-            editTodo={editTodo}
-            selectTodo={selectTodo}
+            updateTodo={updateTodo}
           />
-        </div>
+        )}
       </div>
-    </ThemeContext.Provider>
+    </div>
   );
 }
 
