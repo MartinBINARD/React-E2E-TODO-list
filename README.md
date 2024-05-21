@@ -7,6 +7,7 @@ A fist step into end to end testing.
 ## TOOLS
 
 - react
+- cypress
 - jest
 - @testing-library/react
 - sass
