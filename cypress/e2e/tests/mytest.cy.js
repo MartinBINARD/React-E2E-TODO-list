@@ -12,10 +12,45 @@ describe('my first set of tests', () => {
     cy.visit('/');
   });
 
-  it('my first test', () => {
-    cy.wait('@fetchedTodos').its('request.method').should('equal', 'GET');
+  it('should edit todo', () => {
+    cy.intercept('PATCH', `${BASE_URL}/${todos[0]._id}`, {
+      ...todos[0],
+      edit: true,
+    }).as('editTodo');
 
-    cy.get('@todos').should('have.length', 4);
-    cy.wrap(todos).should('have.length', 4);
+    cy.contains(todos[0].content)
+      .parent()
+      .contains(/modifier/i)
+      .click();
+
+    cy.wait('@editTodo').its('request.body').should('deep.equal', {
+      content: todos[0].content,
+      edit: true,
+      done: false,
+    });
+
+    const type = ' et une poire';
+
+    cy.intercept('PATCH', `${BASE_URL}/${todos[0]._id}`, {
+      ...todos[0],
+      content: todos[0].content + type,
+      edit: false,
+    }).as('savedTodo');
+
+    cy.findByDisplayValue(todos[0].content)
+      .type(type)
+      .parent()
+      .contains(/sauvegarder/i)
+      .click();
+
+    cy.wait('@savedTodo')
+      .its('request.body')
+      .should('deep.equal', {
+        content: todos[0].content + type,
+        edit: false,
+        done: false,
+      });
+
+    cy.contains(todos[0].content + type).should('exist');
   });
 });
